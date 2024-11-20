@@ -1,10 +1,11 @@
-use chrono::{DateTime, Local, TimeDelta};
+use std::sync::mpsc::Sender;
+
+use chrono::Local;
 use futures_util::{stream::StreamExt, try_join};
-use std::io;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use zbus::Connection;
 use zbus_macros::proxy;
+
+use crate::app::Message;
 
 #[proxy(
     default_service = "org.gnome.SessionManager",
@@ -24,51 +25,10 @@ trait SessionManager {
 trait Login1Session {
     #[zbus(signal)]
     fn unlock(&self) -> zbus::Result<()>;
-
-    #[zbus(signal)]
-    fn lock(&self) -> zbus::Result<()>;
-
-    #[zbus(property)]
-    fn name(&self) -> zbus::Result<String>;
-
-    #[zbus(property)]
-    fn active(&self) -> zbus::Result<bool>;
-
-    #[zbus(property)]
-    fn state(&self) -> zbus::Result<String>;
-}
-
-#[derive(Debug)]
-struct Timer {
-    timestamp: DateTime<Local>,
-    start_time: DateTime<Local>,
-    break_duration: TimeDelta,
-}
-
-impl Timer {
-    fn new() -> Timer {
-        let now = Local::now();
-        return Timer {
-            timestamp: now,
-            start_time: now,
-            break_duration: TimeDelta::zero(),
-        };
-    }
-    fn update_timestamp(&mut self, new_value: DateTime<Local>) {
-        self.timestamp = new_value;
-    }
-
-    fn update_break_duration(&mut self, new_value: TimeDelta) {
-        self.break_duration = self.break_duration.checked_add(&new_value).unwrap();
-    }
-
-    fn calculate_diff(&self, current_time: DateTime<Local>) -> TimeDelta {
-        current_time.time() - self.timestamp.time()
-    }
 }
 
 #[tokio::main]
-pub async fn run_timer() -> zbus::Result<()> {
+pub async fn run_timer(tx: Sender<Message>) -> color_eyre::Result<()> {
     // est connections
     let session_connection = Connection::session().await?;
     let system_connection = Connection::system().await?;
@@ -81,15 +41,11 @@ pub async fn run_timer() -> zbus::Result<()> {
     let mut session_manager_stream = session_manager_proxy.receive_status_changed().await?;
     let mut login_state_stream = login_session_proxy.receive_unlock().await?;
 
-    let timer = Arc::new(Mutex::new(Timer::new()));
-    let timer_clone_1 = Arc::clone(&timer);
-    let timer_clone_2 = Arc::clone(&timer);
-
     // handler for the unlock dbus signal
+    let tx_clone = tx.clone();
     let unlock_stream_handle = tokio::spawn(async move {
         while let Some(_) = login_state_stream.next().await {
-            let current_time = Local::now();
-            println!("logged in mate: {}", current_time);
+            tx_clone.send(Message::Unlock).unwrap();
         }
     });
 
@@ -99,17 +55,14 @@ pub async fn run_timer() -> zbus::Result<()> {
             let args: StatusChangedArgs = signal.args().expect("Error parsing the args");
             match args.status {
                 3 => {
-                    let mut timer = timer_clone_2.lock().await;
-                    let locktime = Local::now();
-                    timer.update_timestamp(locktime);
-                    println!("this is the lock part: {}", timer.timestamp);
+                    tx.send(Message::Lock).unwrap();
                 }
                 _ => {}
             }
         }
     });
 
-    try_join!(lock_stream_handle, unlock_stream_handle);
+    try_join!(lock_stream_handle, unlock_stream_handle)?;
 
     Ok(())
 }

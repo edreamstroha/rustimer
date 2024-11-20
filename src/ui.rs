@@ -48,13 +48,13 @@ pub fn ui(frame: &mut Frame, app: &App) {
                 ])
                 .split(chunks[1]);
 
-            let temp = Local::now() - app.start_time;
+            let temp = (Local::now() - app.start_time) - app.break_duration;
             let time_elapsed = Paragraph::new(Text::styled(
                 format!(
-                    "time_elapsed: {}:{}:{}",
-                    temp.num_hours(),
-                    temp.num_minutes(),
-                    temp.num_seconds()
+                    "time_elapsed: {:0>2}:{:0>2}:{:0>2}",
+                    (temp.num_seconds() / 60) / 60,
+                    (temp.num_seconds() / 60) % 60,
+                    temp.num_seconds() % 60
                 ),
                 Style::default().fg(Color::Rgb(49, 116, 143)),
             ))
@@ -63,10 +63,10 @@ pub fn ui(frame: &mut Frame, app: &App) {
 
             let break_time = Paragraph::new(Text::styled(
                 format!(
-                    "break_time: {}:{}:{}",
-                    app.break_duration.num_hours(),
-                    app.break_duration.num_minutes(),
-                    app.break_duration.num_seconds()
+                    "break_time: {:0>2}:{:0>2}:{:0>2}",
+                    (app.break_duration.num_seconds() / 60) / 60,
+                    (app.break_duration.num_seconds() / 60) % 60,
+                    app.break_duration.num_seconds() % 60
                 ),
                 Style::default().fg(Color::Rgb(49, 116, 143)),
             ))

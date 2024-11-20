@@ -10,6 +10,8 @@ pub enum State {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Message {
     Switch,
+    Lock,
+    Unlock,
     Quit,
 }
 
@@ -18,6 +20,8 @@ pub struct App {
     pub current_screen: State,
     pub start_time: DateTime<Local>,
     pub break_duration: Duration,
+    pub break_start: Option<DateTime<Local>>,
+    pub break_stop: Option<DateTime<Local>>,
 }
 
 impl App {
@@ -26,6 +30,8 @@ impl App {
             current_screen: State::Main,
             start_time: Local::now(),
             break_duration: Duration::seconds(0),
+            break_start: None,
+            break_stop: None,
         }
     }
 }
