@@ -48,7 +48,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
                 ])
                 .split(chunks[1]);
 
-            let temp = (Local::now() - app.start_time) - app.break_duration;
+            let temp = (Local::now() - app.start_time) + app.break_duration;
             let time_elapsed = Paragraph::new(Text::styled(
                 format!(
                     "time_elapsed: {:0>2}:{:0>2}:{:0>2}",
